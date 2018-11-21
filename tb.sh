@@ -1,22 +1,21 @@
-#!bash/sh
+#!/bash/sh
 epsilon=0.005
-
-if ["$1" == ""]
+if [ "$1" = "" ];
 then
 netname="3_10"
 else
 netname=$1
 fi
 
-if ["$2" == ""]
+if ["$2" = ""];
 then
 imgname="46"
 else
 imgname=$2
 fi
-echo $netname $imgname
+#echo $netname $imgname
 
-if [$netname == "-all"] && [$imgname == "-all"]
+if [ "$netname" = "-all" ] && [ "$imgname" = "-all" ];
 then
     for net in $(ls ../mnist_nets)
         do
@@ -29,9 +28,8 @@ then
     done
 fi
 
-if ["$imgname" == "-all"]
+if [ $imgname = "-all" ];
 then
-    echo net $netname
     for img in $(ls ../mnist_images)
         do
         echo $img | tee -a all_img_on_net$netname.log
@@ -39,9 +37,8 @@ then
     done
 fi
 
-if ["$netname" == "-all"]
+if [ $netname = "-all" ]
 then
-    echo image $imagename
     for net in $(ls ../mnist_nets)
     do
         echo $netname | tee -a all_net_on_img$imgname.log

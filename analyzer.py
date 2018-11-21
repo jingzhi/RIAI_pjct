@@ -18,6 +18,7 @@ import ctypes
 from ctypes.util import find_library
 from gurobipy import *
 import time
+import os
 
 libc = CDLL(find_library('c'))
 cstdout = c_void_p.in_dll(libc, 'stdout')
@@ -190,7 +191,7 @@ def analyze(nn, LB_N0, UB_N0, label):
            elina_dimchange_free(dimrem)
 
            #******* If ReLU *******
-           LinearSolver = True
+           LinearSolver = False
            LB_lin=[]
            UB_lin=[]
            if(nn.layertypes[layerno]=='ReLU'): 
@@ -219,15 +220,12 @@ def analyze(nn, LB_N0, UB_N0, label):
                        else:
                            grad_lin = b_ub/(b_ub-a_lb)
                            bias_lin = -b_ub*a_lb/(b_ub-a_lb)
-                           print(grad_lin,bias_lin)
+                           #print(grad_lin,bias_lin)
                            y.append(m.addVar(name=var_str))
                            m.addConstr(y[0]>= 0)
-                           print("flag")
-                           print(activat0_linexpr0)
+                           #print(activat0_linexpr0)
                            m.addConstr(y[0]>= activat0_linexpr0)
-                           print("flag")
                            m.addConstr((y[0]-bias_lin)/grad_lin<= activat0_linexpr0)
-                           print("flag")
                        m.update()
                        # minimise for lower bound
                        m.setObjective(y[0],GRB.MINIMIZE)
@@ -322,5 +320,15 @@ if __name__ == '__main__':
         print("image not correctly classified by the network. expected label ",int(x0_low[0]), " classified label: ", label)
     end = time.time()
     print("analysis time: ", (end-start), " seconds")
-    
+     
+    ##*********OUTPUT data**********##
+    exists = os.path.isfile('log.csv')
+    mode = 'a' if (exists) else 'w'
+    fields=['network','image','is_verified','time']
+    with open('log.csv',mode) as f:
+        w =csv.writer(f)
+        if (not exists):
+            w.writerow(fields)
+        w.writerow([netname,specname,verified_flag,end-start])
+
 
