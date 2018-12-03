@@ -191,7 +191,7 @@ def analyze(nn, LB_N0, UB_N0, label):
            elina_dimchange_free(dimrem)
 
            #******* If ReLU *******
-           LinearSolver = True
+           LinearSolver = False
            LB_lin=[]
            UB_lin=[]
            if(nn.layertypes[layerno]=='ReLU'): 
@@ -335,6 +335,6 @@ if __name__ == '__main__':
         w =csv.writer(f)
         if (not exists):
             w.writerow(fields)
-        w.writerow([netname,specname,epsilon,is_valid,is_verified,layers_with_linear_solver,end-start])
+        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,layers_with_linear_solver,end-start])
 
 
