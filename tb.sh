@@ -1,5 +1,5 @@
 #!/bash/sh
-epsilon=0.005
+epsilon=0.01
 if [ "$1" = "" ];
 then
 netname="3_10"
@@ -26,18 +26,14 @@ then
             python3 analyzer.py ../mnist_nets/$net ../mnist_images/$img $epsilon | tee -a all_on_all.log
         done
     done
-fi
-
-if [ $imgname = "-all" ];
+elif [ $imgname = "-all" ];
 then
     for img in $(ls ../mnist_images)
         do
         echo $img | tee -a all_img_on_net$netname.log
         python3 analyzer.py ../mnist_nets/mnist_relu_$netname.txt ../mnist_images/$img $epsilon | tee -a all_img_on_net$netname.log
     done
-fi
-
-if [ $netname = "-all" ]
+elif [ $netname = "-all" ]
 then
     for net in $(ls ../mnist_nets)
     do
