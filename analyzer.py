@@ -22,7 +22,7 @@ import os
 
 libc = CDLL(find_library('c'))
 cstdout = c_void_p.in_dll(libc, 'stdout')
-
+layers_with_linear_solver=[]
 class layers:
     def __init__(self):
         self.layertypes = []
@@ -200,6 +200,7 @@ def analyze(nn, LB_N0, UB_N0, label):
                if (not LinearSolver):
                    element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
                else:
+                   layers_with_linear_solver.append(layerno)
                ## Linear Solver
                    activat0_bounds = elina_abstract0_to_box(man,element)
                    itv_lin = elina_interval_array_alloc(num_out_pixels)
@@ -310,29 +311,33 @@ if __name__ == '__main__':
     
     label, _ = analyze(nn,LB_N0,UB_N0,0)
     start = time.time()
-    #flag about whether the image can be correctly classified
-    network_verified_flag= label==int(x0_low[0])
-    if(network_verified_flag):
+    is_valid = False
+    is_verified =False
+    if(label==int(x0_low[0])):
+        is_valid = True
         LB_N0, UB_N0 = get_perturbed_image(x0_low,epsilon)
         _, verified_flag = analyze(nn,LB_N0,UB_N0,label)
+        is_verified=verified_flag
         if(verified_flag):
             print("verified")
         else:
             print("can not be verified")  
     else:
+        is_valid = False
         print("image not correctly classified by the network. expected label ",int(x0_low[0]), " classified label: ", label)
     end = time.time()
     print("analysis time: ", (end-start), " seconds")
      
     ##*********OUTPUT data**********##
-    csv_address='/home/riai2018/RIAI_pjct/output/e{}_all_img_on_net{}.csv'.format(epsilon,netname[25:])
+    csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
     exists = os.path.isfile(csv_address)
     mode = 'a' if (exists) else 'w'
-    fields=['network','image','is_verified','network_correct','time']
-    with open(csv_address,mode) as f:
+    fields=['network','image','epsilon','is_valid','is_verified','layers_with_linear_solber','time']
+    with open('log.csv',mode) as f:
         w =csv.writer(f)
         if (not exists):
             w.writerow(fields)
-        w.writerow([netname,specname,verified_flag,network_verified_flag,end-start])
+        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,layers_with_linear_solver,end-start])
+
 
 

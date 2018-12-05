@@ -1,6 +1,8 @@
 #!/bash/sh
+
 # here change epsilon
 epsilon=0.005
+
 if [ "$1" = "" ];
 then
 netname="3_10"
@@ -27,9 +29,7 @@ then
             python3 analyzer.py ../mnist_nets/$net ../mnist_images/$img $epsilon | tee -a all_on_all.log
         done
     done
-fi
-
-if [ $imgname = "-all" ];
+elif [ $imgname = "-all" ];
 then
     for img in $(ls ../mnist_images)
         do
