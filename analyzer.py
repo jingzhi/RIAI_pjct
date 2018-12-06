@@ -124,8 +124,8 @@ def generate_linexpr0(weights, bias, size):
         elina_linexpr0_set_coeff_scalar_double(linexpr0,i,weights[i])
     return linexpr0
 
-def analyze(nn, LB_N0, UB_N0, label):    
-    LinearSolver = True# editable
+def analyze(nn, LB_N0, UB_N0, label, layer_pattern):    
+    LinearSolver = layer_pattern #True# editable
     num_pixels = len(LB_N0)
     nn.ffn_counter = 0
     numlayer = nn.numlayer 
@@ -197,7 +197,7 @@ def analyze(nn, LB_N0, UB_N0, label):
            UB_lin=[]
            if(nn.layertypes[layerno]=='ReLU'): 
                ## ELINA
-               if (not LinearSolver):
+               if (not LinearSolver[layerno]):
                    element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
                else:
                    layers_with_linear_solver.append(layerno)
@@ -300,23 +300,29 @@ if __name__ == '__main__':
     netname = argv[1]
     specname = argv[2]
     epsilon = float(argv[3])
+    
     #c_label = int(argv[4])
     with open(netname, 'r') as netfile:
         netstring = netfile.read()
     with open(specname, 'r') as specfile:
         specstring = specfile.read()
-    nn = parse_net(netstring)
+    nn = parse_net(netstring)#check nn.numlayer
     x0_low, x0_high = parse_spec(specstring)
     LB_N0, UB_N0 = get_perturbed_image(x0_low,0)
     
-    label, _ = analyze(nn,LB_N0,UB_N0,0)
+#####****************setup layer pattern
+    linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
+    print(linear_pattern)
+######******************88888
+
+    label, _ = analyze(nn,LB_N0,UB_N0,0,linear_pattern)
     start = time.time()
     is_valid = False
     is_verified =False
     if(label==int(x0_low[0])):
         is_valid = True
         LB_N0, UB_N0 = get_perturbed_image(x0_low,epsilon)
-        _, verified_flag = analyze(nn,LB_N0,UB_N0,label)
+        _, verified_flag = analyze(nn,LB_N0,UB_N0,label,linear_pattern)# add layer specification
         is_verified=verified_flag
         if(verified_flag):
             print("verified")
@@ -332,12 +338,12 @@ if __name__ == '__main__':
     csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
     exists = os.path.isfile(csv_address)
     mode = 'a' if (exists) else 'w'
-    fields=['network','image','epsilon','is_valid','is_verified','layers_with_linear_solber','time']
-    with open('log.csv',mode) as f:
+    fields=['network','image','epsilon','is_valid','is_verified','layers_with_linear_solver','time']
+    with open('/home/riai2018/RIAI_pjct/output/log.csv',mode) as f:
         w =csv.writer(f)
         if (not exists):
             w.writerow(fields)
-        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,layers_with_linear_solver,end-start])
+        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,linear_pattern,end-start])
 
 
 
