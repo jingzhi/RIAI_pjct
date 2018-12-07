@@ -318,9 +318,9 @@ if __name__ == '__main__':
     LB_N0, UB_N0 = get_perturbed_image(x0_low,0)
     
 #####****************setup layer pattern
-    #all_linear_pattern = []
-    #for i in range(nn.numlayer):
-        #all_linear_pattern.append
+    ##possible usage of switch to choose suitable pattern
+    #linear_pattern = switch(re.search(r"\d+_\d+",netname).group())
+
     sample_linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
     
 ######******************88888
