@@ -289,7 +289,14 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
     elina_manager_free(man)        
     return predicted_label, verified_flag
 
-
+#for the switch to have certain pattern for corresponding network
+#currently just a sample 
+def switch(netname):
+    return {
+        '3_10':[True, True, True],
+        '3_20':[True, True, True],
+    }[netname]
+#*******************************************
 
 if __name__ == '__main__':
     from sys import argv
@@ -311,8 +318,11 @@ if __name__ == '__main__':
     LB_N0, UB_N0 = get_perturbed_image(x0_low,0)
     
 #####****************setup layer pattern
-    linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
-    print(linear_pattern)
+    #all_linear_pattern = []
+    #for i in range(nn.numlayer):
+        #all_linear_pattern.append
+    sample_linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
+    
 ######******************88888
 
     label, _ = analyze(nn,LB_N0,UB_N0,0,linear_pattern)
@@ -322,7 +332,7 @@ if __name__ == '__main__':
     if(label==int(x0_low[0])):
         is_valid = True
         LB_N0, UB_N0 = get_perturbed_image(x0_low,epsilon)
-        _, verified_flag = analyze(nn,LB_N0,UB_N0,label,linear_pattern)# add layer specification
+        _, verified_flag = analyze(nn,LB_N0,UB_N0,label,sample_linear_pattern)# add layer specification
         is_verified=verified_flag
         if(verified_flag):
             print("verified")
