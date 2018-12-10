@@ -321,11 +321,11 @@ if __name__ == '__main__':
     ##possible usage of switch to choose suitable pattern
     #linear_pattern = switch(re.search(r"\d+_\d+",netname).group())
 
-    sample_linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
+    sample_linear_pattern = [False for _ in range(nn.numlayer)]#setup linear solver pattern
     
 ######******************88888
 
-    label, _ = analyze(nn,LB_N0,UB_N0,0,linear_pattern)
+    label, _ = analyze(nn,LB_N0,UB_N0,0,sample_linear_pattern)
     start = time.time()
     is_valid = False
     is_verified =False
@@ -353,7 +353,7 @@ if __name__ == '__main__':
         w =csv.writer(f)
         if (not exists):
             w.writerow(fields)
-        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,linear_pattern,end-start])
+        w.writerow([re.search(r"\d+_\d+",netname).group(),re.search(r"img\d+",specname).group(),epsilon,is_valid,is_verified,sample_linear_pattern,end-start])
 
 
 
