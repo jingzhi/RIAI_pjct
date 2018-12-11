@@ -124,128 +124,163 @@ def generate_linexpr0(weights, bias, size):
         elina_linexpr0_set_coeff_scalar_double(linexpr0,i,weights[i])
     return linexpr0
 
+def toElina(lb,ub,man,num_pixels):
+    ##******* ELINA construct input abstraction from interval array *******
+    itv = elina_interval_array_alloc(num_pixels)
+    for i in range(num_pixels):
+        elina_interval_set_double(itv[i],lb[i],ub[i])
+    # input zonotope (box), no int variable, all real variable
+    element = elina_abstract0_of_box(man, 0, num_pixels, itv) #abstraction, create a hypercude defiend by the ElinaIntervalArray, 
+    elina_interval_array_free(itv,num_pixels)
+    return element
+
+def fromElina(model,element,man,num_pixels):
+    var_list=[]
+    lb=[]
+    ub=[]
+    bounds = elina_abstract0_to_box(man,element)
+    for i in range(num_pixels):
+        lb.append(bounds[i].contents.inf.contents.val.dbl)
+        ub.append(bounds[i].contents.sup.contents.val.dbl)
+        var_str="x{}".format(i)
+        var_list.append( model.addVar(lb=lb[i],ub=ub[i],name=var_str) )
+    model.update() #update model so that linear expression can access var name
+    elina_interval_array_free(bounds,num_pixels)
+    return var_list,lb,ub
+
+def getBoundsFromElina(element,man,num_pixels):
+    lb=[]
+    ub=[]
+    bounds = elina_abstract0_to_box(man,element)
+    for i in range(num_pixels):
+        lb.append(bounds[i].contents.inf.contents.val.dbl)
+        ub.append(bounds[i].contents.sup.contents.val.dbl)
+    elina_interval_array_free(bounds,num_pixels)
+    return lb,ub
+
 def analyze(nn, LB_N0, UB_N0, label, layer_pattern):    
     LinearSolver = layer_pattern #True# editable
     num_pixels = len(LB_N0)
     nn.ffn_counter = 0
-    numlayer = nn.numlayer 
+    numlayer = nn.numlayer
+    ## initialise Elina ##
     man = elina_box_manager_alloc()
-    itv = elina_interval_array_alloc(num_pixels)
-    # define interval array from perturbed img
-    for i in range(num_pixels):
-        elina_interval_set_double(itv[i],LB_N0[i],UB_N0[i])
+    element = toElina(LB_N0,UB_N0,man,num_pixels)
+    ## initiaise Linear solver ##
+    m = Model("Gorubi")
+    m.Params.OutputFlag=0 
+    in_var_list,in_lb,in_ub = fromElina(m,element,man,num_pixels)
+    expr0_dict={}
+    var_dict={0:in_var_list}
 
-    ##******* ELINA construct input abstraction from interval array *******
-    # input zonotope (box), no int variable, all real variable
-    element = elina_abstract0_of_box(man, 0, num_pixels, itv) #abstraction, create a hypercude defiend by the ElinaIntervalArray, 
-
-    # free interval array
-    elina_interval_array_free(itv,num_pixels)
-    
     # go through each layer
     for layerno in range(numlayer):
         # for each layer
         if(nn.layertypes[layerno] in ['ReLU', 'Affine']):
-           weights = nn.weights[nn.ffn_counter]
-           biases = nn.biases[nn.ffn_counter]
-           # get current dimention of element
-           dims = elina_abstract0_dimension(man,element) #element: abstraction of box
-           num_in_pixels = dims.intdim + dims.realdim
-           # get target dimension
-           num_out_pixels = len(weights)
-           
-           # construct dimension to be added
-           dimadd = elina_dimchange_alloc(0,num_out_pixels)    
-           for i in range(num_out_pixels):
-               dimadd.contents.dim[i] = num_in_pixels
-           elina_abstract0_add_dimensions(man, True, element, dimadd, False)
-           elina_dimchange_free(dimadd)
+            weights = nn.weights[nn.ffn_counter]
+            biases = nn.biases[nn.ffn_counter]
+            #******* ELINA For affine *******
+            # get current dimention of element
+            dims = elina_abstract0_dimension(man,element) #element: abstraction of box
+            num_in_pixels = dims.intdim + dims.realdim
+            # get target dimension
+            num_out_pixels = len(weights)
+            # construct dimension to be added
+            dimadd = elina_dimchange_alloc(0,num_out_pixels)    
+            for i in range(num_out_pixels):
+                dimadd.contents.dim[i] = num_in_pixels
+            elina_abstract0_add_dimensions(man, True, element, dimadd, False)
+            elina_dimchange_free(dimadd)
+            # weights to contiguousarray
+            np.ascontiguousarray(weights, dtype=np.double)
+            np.ascontiguousarray(biases, dtype=np.double)
+            var = num_in_pixels
+            for i in range(num_out_pixels):
+                tdim= ElinaDim(var)
+                linexpr0 = generate_linexpr0(weights[i],biases[i],num_in_pixels)
+                element = elina_abstract0_assign_linexpr_array(man, True, element, tdim, linexpr0, 1, None)
+                var+=1
+            dimrem = elina_dimchange_alloc(0,num_in_pixels)
+            for i in range(num_in_pixels):
+                dimrem.contents.dim[i] = i
+            elina_abstract0_remove_dimensions(man, True, element, dimrem)
+            elina_dimchange_free(dimrem)
+            # ****** Linear solver affine *******
+            if ( LinearSolver[layerno] and (LB_N0[0]!=UB_N0[0]) ):
+                expr0_list=[]
+                for i in range(num_out_pixels):
+                    activat0_linexpr0=LinExpr(weights[i].tolist(),var_dict[layerno])
+                    activat0_linexpr0.addConstant(biases[i])
+                    expr0_list.append(activat0_linexpr0)  
+                expr0_dict.update({layerno:expr0_list})
 
-           # weights to contiguousarray
-           np.ascontiguousarray(weights, dtype=np.double)
-           np.ascontiguousarray(biases, dtype=np.double)
-           var = num_in_pixels
-
-           #******* Linear solver model for affine *******
-           m = Model("Relu")
-           in_bounds = elina_abstract0_to_box(man,element)
-           
-           # Add input variable to linear solver as x1-xn
-           in_var_list=[]
-           for i in range(num_in_pixels):
-               in_lb=in_bounds[i].contents.inf.contents.val.dbl
-               in_ub=in_bounds[i].contents.sup.contents.val.dbl
-               var_str="x{}".format(i)
-               in_var_list.append( m.addVar(lb=in_lb,ub=in_ub,name=var_str) )
-           m.update() #update model so that linear expression can access var name
-           elina_interval_array_free(in_bounds,var)
-           #******* ELINA For affine *******
-           for i in range(num_out_pixels):
-               tdim= ElinaDim(var)
-               linexpr0 = generate_linexpr0(weights[i],biases[i],num_in_pixels)
-               element = elina_abstract0_assign_linexpr_array(man, True, element, tdim, linexpr0, 1, None)
-               var+=1
-           dimrem = elina_dimchange_alloc(0,num_in_pixels)
-           for i in range(num_in_pixels):
-               dimrem.contents.dim[i] = i
-           elina_abstract0_remove_dimensions(man, True, element, dimrem)
-           elina_dimchange_free(dimrem)
-
-           #******* If ReLU *******
-           
-           LB_lin=[]
-           UB_lin=[]
-           if(nn.layertypes[layerno]=='ReLU'): 
-               ## ELINA
-               if (not LinearSolver[layerno]):
-                   element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
-               else:
-                   layers_with_linear_solver.append(layerno)
-               ## Linear Solver
-                   activat0_bounds = elina_abstract0_to_box(man,element)
-                   itv_lin = elina_interval_array_alloc(num_out_pixels)
-                   for i in range(num_out_pixels):
-                       a_lb =activat0_bounds[i].contents.inf.contents.val.dbl
-                       b_ub =activat0_bounds[i].contents.sup.contents.val.dbl
-                       # expression for the activation of an neuron
-                       activat0_linexpr0=LinExpr(weights[i].tolist(),in_var_list)
-                       print(biases[i])
-                       activat0_linexpr0.addConstant(biases[i])
-                       print(activat0_linexpr0)
-                       # define relu output as y1-yn and set constraint
-                       var_str="y{}".format(i)
-                       y=[]
-                       if(a_lb>=0):
-                           y.append(m.addVar(lb=a_lb,ub=b_ub,name=var_str))
-                       elif(b_ub<=0):
-                           y.append(m.addVar(lb=0.0,ub=0.0,name=var_str))
-                       else:
-                           grad_lin = b_ub/(b_ub-a_lb)
-                           bias_lin = -b_ub*a_lb/(b_ub-a_lb)
-                           #print(grad_lin,bias_lin)
-                           y.append(m.addVar(name=var_str))
-                           m.addConstr(y[0]>= 0)
-                           #print(activat0_linexpr0)
-                           m.addConstr(y[0]>= activat0_linexpr0)
-                           m.addConstr((y[0]-bias_lin)/grad_lin<= activat0_linexpr0)
-                       m.update()
-                       # minimise for lower bound
-                       m.setObjective(y[0],GRB.MINIMIZE)
-                       m.optimize()
-                       y_lb=y[0].x
-                       # maximise for upper bound
-                       m.setObjective(y[0],GRB.MAXIMIZE)
-                       m.optimize()
-                       y_ub=y[0].x
-                       print('layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb,y_ub))
-                       # define interval array from perturbed img
-                       elina_interval_set_double(itv_lin[i],y_lb,y_ub)
-                   
-                       ##******* ELINA construct input abstraction from interval array *******
-                   element = elina_abstract0_of_box(man, 0, num_out_pixels, itv_lin) 
-                   elina_interval_array_free(itv_lin,num_out_pixels)
-                   elina_interval_array_free(activat0_bounds,num_out_pixels)
-           nn.ffn_counter+=1 
+            #******* If ReLU *******
+            if(nn.layertypes[layerno]=='ReLU'): 
+                ## ELINA
+                if ((not LinearSolver[layerno]) or (LB_N0[0]==UB_N0[0])):
+                     element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
+                else:
+                     layers_with_linear_solver.append(layerno)
+                ## Linear Solver# define relu output as y1-yn and set constraint
+                     a_lb_array,b_ub_array = getBoundsFromElina(element,man,num_out_pixels)
+                     y=[]
+                     for i in range(num_out_pixels):
+                          a_lb=a_lb_array[i]
+                          b_ub=b_ub_array[i]
+                          #print(grad_lin,bias_lin)
+                          var_str="y{}_{}".format(layerno,i)
+                          if(a_lb>=0):
+                              y.append(m.addVar(name=var_str))
+                              m.addConstr(y[i]>= a_lb) 
+                              m.addConstr(y[i]<= b_ub) 
+                              m.addConstr(y[i]== expr0_dict[layerno][i] )
+                              #y.append(m.addVar(lb=a_lb,ub=b_ub,name=var_str))
+                          elif(b_ub<=0):
+                              y.append(m.addVar(name=var_str))
+                              m.addConstr(y[i]== 0) 
+                              #y.append(m.addVar(lb=0.0,ub=0.0,name=var_str))
+                          else:
+                              grad_lin = b_ub/(b_ub-a_lb)
+                              bias_lin = -b_ub*a_lb/(b_ub-a_lb)
+                              y.append(m.addVar(name=var_str))
+                              m.addConstr(y[i]>= 0) 
+                              m.addConstr(y[i]>= expr0_dict[layerno][i] )
+                              m.addConstr(y[i]== grad_lin*expr0_dict[layerno][i]+bias_lin) 
+                          #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
+                     var_dict.update({layerno+1:y})
+                     m.update()
+                     if(1):#layerno == numlayer-1):        
+                         y_lb=[]
+                         y_ub=[]
+                         for i in range(num_out_pixels):
+                             # minimise for lower bound
+                             m.setObjective(y[i],GRB.MINIMIZE)
+                             m.update()
+                             m.optimize()
+                             #print('Minisingsing layer{},neuron{}:'.format(layerno,i))
+                             #for j in range(num_out_pixels):
+                             #    #print('neuron{}:{}'.format(j,expr0_dict[layerno][j].getValue()))
+                             #    print('neuron{}:{}'.format(j,y[j].x))
+                             # define interval array from perturbed img
+                             y_lb.append(y[i].x)
+                             # maximise for upper bound
+                             m.setObjective(y[i],GRB.MAXIMIZE)
+                             m.update()
+                             m.optimize()
+                             #print('Maxisingsing layer{},neuron{}:'.format(layerno,i))
+                             #for j in range(num_out_pixels):
+                             #    #print('neuron{}:{}'.format(j,expr0_dict[layerno][j].getValue()))
+                             #    print('neuron{}:{}'.format(j,y[j].x))
+                             y_ub.append(y[i].x)
+                             #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                             # define interval array from perturbed img
+                         ##element_joint= elina_abstract0_join(man, destructive, a1, a2):
+                             ##******* ELINA construct input abstraction from interval array *******
+                     if (1):#(layerno == numlayer-1):        
+                         element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                     else:
+                         element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
+            nn.ffn_counter+=1 
 
         else:
            print(' net type not supported')
@@ -293,8 +328,18 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
 #currently just a sample 
 def switch(netname):
     return {
+        #'3_10':[False,False,False],
         '3_10':[True, True, True],
         '3_20':[True, True, True],
+        '3_50':[True, True, True],
+        '4_1024':[True, True, True, True],
+        '6_20':[True, True, True, True, True, True],
+        '6_50':[True, True, True, True, True, True],
+        '6_100':[True, True, True, True, True, True],
+        #'6_100':[False,False,False,False,False,False,],
+        '6_200':[True, True, True, True, True, True],
+        '9_100':[True, True, True, True, True, True, True, True, True],
+        '9_200':[True, True, True, True, True, True, True, True, True],
     }[netname]
 #*******************************************
 
@@ -319,9 +364,9 @@ if __name__ == '__main__':
     
 #####****************setup layer pattern
     ##possible usage of switch to choose suitable pattern
-    #linear_pattern = switch(re.search(r"\d+_\d+",netname).group())
+    linear_pattern = switch(re.search(r"\d+_\d+",netname).group())
 
-    sample_linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
+    #sample_linear_pattern = [True for _ in range(nn.numlayer)]#setup linear solver pattern
     
 ######******************88888
 
@@ -332,12 +377,13 @@ if __name__ == '__main__':
     if(label==int(x0_low[0])):
         is_valid = True
         LB_N0, UB_N0 = get_perturbed_image(x0_low,epsilon)
-        _, verified_flag = analyze(nn,LB_N0,UB_N0,label,sample_linear_pattern)# add layer specification
+        _, verified_flag = analyze(nn,LB_N0,UB_N0,label,linear_pattern)# add layer specification
         is_verified=verified_flag
         if(verified_flag):
             print("verified")
         else:
             print("can not be verified")  
+        print("True Label {}".format(x0_low[0]))  
     else:
         is_valid = False
         print("image not correctly classified by the network. expected label ",int(x0_low[0]), " classified label: ", label)
@@ -345,11 +391,12 @@ if __name__ == '__main__':
     print("analysis time: ", (end-start), " seconds")
      
     ##*********OUTPUT data**********##
-    csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
+    #csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
+    csv_address='log.csv'
     exists = os.path.isfile(csv_address)
     mode = 'a' if (exists) else 'w'
     fields=['network','image','epsilon','is_valid','is_verified','layers_with_linear_solver','time']
-    with open('/home/riai2018/RIAI_pjct/output/log.csv',mode) as f:
+    with open(csv_address,mode) as f:
         w =csv.writer(f)
         if (not exists):
             w.writerow(fields)
