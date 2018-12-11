@@ -1,3 +1,15 @@
+##########################################################
+# Code Strcture
+#1. For each network, a pattern list specifies whether linear solver is used in each layer
+#   eg.[True,True,False,False]
+#2. Elina is used in all layers for rough lower and upper bound
+#
+#3. 1) At the beginning of each layer, Elina handles affine transformation
+#   2) If it is a ReLu layer, either Elina or Gorubi handles ReLu depending on the pattern specified
+#   3) If Gorubi was used, a new Elina abstraction is constructed after obtaining the bounds. So we always end up with an Elina box
+#
+#
+#
 import sys
 sys.path.insert(0, '../ELINA/python_interface/')
 
@@ -134,7 +146,7 @@ def toElina(lb,ub,man,num_pixels):
     elina_interval_array_free(itv,num_pixels)
     return element
 
-def fromElina(model,element,man,num_pixels):
+def getVarListfromElina(model,element,man,num_pixels,layerno):
     var_list=[]
     lb=[]
     ub=[]
@@ -142,11 +154,11 @@ def fromElina(model,element,man,num_pixels):
     for i in range(num_pixels):
         lb.append(bounds[i].contents.inf.contents.val.dbl)
         ub.append(bounds[i].contents.sup.contents.val.dbl)
-        var_str="x{}".format(i)
+        var_str="y{}_{}".format(layerno,i)
         var_list.append( model.addVar(lb=lb[i],ub=ub[i],name=var_str) )
     model.update() #update model so that linear expression can access var name
     elina_interval_array_free(bounds,num_pixels)
-    return var_list,lb,ub
+    return var_list
 
 def getBoundsFromElina(element,man,num_pixels):
     lb=[]
@@ -168,10 +180,12 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
     element = toElina(LB_N0,UB_N0,man,num_pixels)
     ## initiaise Linear solver ##
     m = Model("Gorubi")
-    m.Params.OutputFlag=0 
-    in_var_list,in_lb,in_ub = fromElina(m,element,man,num_pixels)
+    m.Params.OutputFlag=0
+    # dictionary to hold all gurobi linear expressions,{layerno:[expr_list]} ##
     expr0_dict={}
-    var_dict={0:in_var_list}
+    # dictionay to hold all gurobi variables, {layerno:[input_var_list]}. Note img is the input to layer0 
+    img_var_list= getVarListfromElina(m,element,man,num_pixels,0)
+    var_dict={0:img_var_list}
 
     # go through each layer
     for layerno in range(numlayer):
@@ -219,67 +233,58 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                 ## ELINA
                 if ((not LinearSolver[layerno]) or (LB_N0[0]==UB_N0[0])):
                      element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
+                     # Get list of variable for next layer (may or may not be used)
+                     if (not LB_N0[0]==UB_N0[0]):
+                       var_list= getVarListfromElina(m,element,man,num_out_pixels,layerno)
+                       var_dict.update({layerno+1:var_list})
+                ## Linear Solver
                 else:
                      layers_with_linear_solver.append(layerno)
-                ## Linear Solver# define relu output as y1-yn and set constraint
                      a_lb_array,b_ub_array = getBoundsFromElina(element,man,num_out_pixels)
+                     # List of output variable of the layer
                      y=[]
+                     # For each output neuron, perform ReLu approximation
                      for i in range(num_out_pixels):
                           a_lb=a_lb_array[i]
                           b_ub=b_ub_array[i]
-                          #print(grad_lin,bias_lin)
                           var_str="y{}_{}".format(layerno,i)
                           if(a_lb>=0):
                               y.append(m.addVar(name=var_str))
                               m.addConstr(y[i]>= a_lb) 
                               m.addConstr(y[i]<= b_ub) 
+                              # Relu(h) = h
                               m.addConstr(y[i]== expr0_dict[layerno][i] )
-                              #y.append(m.addVar(lb=a_lb,ub=b_ub,name=var_str))
                           elif(b_ub<=0):
                               y.append(m.addVar(name=var_str))
+                              # Relu(h) = 0
                               m.addConstr(y[i]== 0) 
-                              #y.append(m.addVar(lb=0.0,ub=0.0,name=var_str))
                           else:
                               grad_lin = b_ub/(b_ub-a_lb)
                               bias_lin = -b_ub*a_lb/(b_ub-a_lb)
                               y.append(m.addVar(name=var_str))
+                              # Relu(h) = grad*h+bias
                               m.addConstr(y[i]>= 0) 
                               m.addConstr(y[i]>= expr0_dict[layerno][i] )
                               m.addConstr(y[i]== grad_lin*expr0_dict[layerno][i]+bias_lin) 
-                          #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
+                     # Gather var list y as input for the next layer (may or may not be used)
                      var_dict.update({layerno+1:y})
                      m.update()
-                     if(1):#layerno == numlayer-1):        
-                         y_lb=[]
-                         y_ub=[]
-                         for i in range(num_out_pixels):
-                             # minimise for lower bound
-                             m.setObjective(y[i],GRB.MINIMIZE)
-                             m.update()
-                             m.optimize()
-                             #print('Minisingsing layer{},neuron{}:'.format(layerno,i))
-                             #for j in range(num_out_pixels):
-                             #    #print('neuron{}:{}'.format(j,expr0_dict[layerno][j].getValue()))
-                             #    print('neuron{}:{}'.format(j,y[j].x))
-                             # define interval array from perturbed img
-                             y_lb.append(y[i].x)
-                             # maximise for upper bound
-                             m.setObjective(y[i],GRB.MAXIMIZE)
-                             m.update()
-                             m.optimize()
-                             #print('Maxisingsing layer{},neuron{}:'.format(layerno,i))
-                             #for j in range(num_out_pixels):
-                             #    #print('neuron{}:{}'.format(j,expr0_dict[layerno][j].getValue()))
-                             #    print('neuron{}:{}'.format(j,y[j].x))
-                             y_ub.append(y[i].x)
-                             #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                             # define interval array from perturbed img
-                         ##element_joint= elina_abstract0_join(man, destructive, a1, a2):
-                             ##******* ELINA construct input abstraction from interval array *******
-                     if (1):#(layerno == numlayer-1):        
-                         element = toElina(y_lb,y_ub,man,num_out_pixels) 
-                     else:
-                         element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
+                     # Empty as place holder for final bounds of the layer
+                     y_lb=[]
+                     y_ub=[]
+                     for i in range(num_out_pixels):
+                         # minimise for lower bound
+                         m.setObjective(y[i],GRB.MINIMIZE)
+                         m.update()
+                         m.optimize()
+                         y_lb.append(y[i].x)
+                         # maximise for upper bound
+                         m.setObjective(y[i],GRB.MAXIMIZE)
+                         m.update()
+                         m.optimize()
+                         y_ub.append(y[i].x)
+                     # Construct Elina Box    
+                     element = toElina(y_lb,y_ub,man,num_out_pixels) 
             nn.ffn_counter+=1 
 
         else:
