@@ -178,27 +178,32 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
     ## initialise Elina ##
     man = elina_box_manager_alloc()
     element = toElina(LB_N0,UB_N0,man,num_pixels)
-    ## initiaise Linear solver ##
+
     m = Model("Gorubi")
     m.Params.OutputFlag=0
-    # dictionary to hold all gurobi linear expressions,{layerno:[expr_list]} ##
-    expr0_dict={}
-    # dictionay to hold all gurobi variables, {layerno:[input_var_list]}. Note img is the input to layer0 
-    img_var_list= getVarListfromElina(m,element,man,num_pixels,0)
-    var_dict={0:img_var_list}
-
+    var_list= getVarListfromElina(m,element,man,num_pixels,0)
     # go through each layer
     for layerno in range(numlayer):
         # for each layer
         if(nn.layertypes[layerno] in ['ReLU', 'Affine']):
             weights = nn.weights[nn.ffn_counter]
             biases = nn.biases[nn.ffn_counter]
-            #******* ELINA For affine *******
+            #******* Extract info from input box *******
             # get current dimention of element
             dims = elina_abstract0_dimension(man,element) #element: abstraction of box
             num_in_pixels = dims.intdim + dims.realdim
             # get target dimension
             num_out_pixels = len(weights)
+            # ****** Linear solver affine *******
+            # m = Model("Gorubi")
+            # m.Params.OutputFlag=0
+            expr0_list=[]
+            if ( LinearSolver[layerno] and (LB_N0[0]!=UB_N0[0]) ):
+                for i in range(num_out_pixels):
+                    activat0_linexpr0=LinExpr(weights[i].tolist(),var_list)
+                    activat0_linexpr0.addConstant(biases[i])
+                    expr0_list.append(activat0_linexpr0)  
+            #******* ELINA For affine *******
             # construct dimension to be added
             dimadd = elina_dimchange_alloc(0,num_out_pixels)    
             for i in range(num_out_pixels):
@@ -219,24 +224,14 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                 dimrem.contents.dim[i] = i
             elina_abstract0_remove_dimensions(man, True, element, dimrem)
             elina_dimchange_free(dimrem)
-            # ****** Linear solver affine *******
-            if ( LinearSolver[layerno] and (LB_N0[0]!=UB_N0[0]) ):
-                expr0_list=[]
-                for i in range(num_out_pixels):
-                    activat0_linexpr0=LinExpr(weights[i].tolist(),var_dict[layerno])
-                    activat0_linexpr0.addConstant(biases[i])
-                    expr0_list.append(activat0_linexpr0)  
-                expr0_dict.update({layerno:expr0_list})
 
             #******* If ReLU *******
             if(nn.layertypes[layerno]=='ReLU'): 
                 ## ELINA
                 if ((not LinearSolver[layerno]) or (LB_N0[0]==UB_N0[0])):
                      element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
-                     # Get list of variable for next layer (may or may not be used)
-                     if (not LB_N0[0]==UB_N0[0]):
-                       var_list= getVarListfromElina(m,element,man,num_out_pixels,layerno)
-                       var_dict.update({layerno+1:var_list})
+                     if (LB_N0[0] != UB_N0[0]):
+                         var_list= getVarListfromElina(m,element,man,num_pixels,layerno+1)
                 ## Linear Solver
                 else:
                      layers_with_linear_solver.append(layerno)
@@ -249,25 +244,27 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                           b_ub=b_ub_array[i]
                           var_str="y{}_{}".format(layerno,i)
                           if(a_lb>=0):
-                              y.append(m.addVar(name=var_str))
-                              m.addConstr(y[i]>= a_lb) 
-                              m.addConstr(y[i]<= b_ub) 
+                              y.append(m.addVar(lb=a_lb,ub=b_ub,name=var_str))
+                              #y.append(m.addVar(name=var_str))
+                              #m.addConstr(y[i]>= a_lb) 
+                              #m.addConstr(y[i]<= b_ub) 
                               # Relu(h) = h
-                              m.addConstr(y[i]== expr0_dict[layerno][i] )
+                              m.addConstr(y[i]== expr0_list[i] )
                           elif(b_ub<=0):
-                              y.append(m.addVar(name=var_str))
+                              y.append(m.addVar(lb=0.0,ub=0.0,name=var_str))
+                              #y.append(m.addVar(name=var_str))
                               # Relu(h) = 0
-                              m.addConstr(y[i]== 0) 
+                              #m.addConstr(y[i]== 0) 
                           else:
                               grad_lin = b_ub/(b_ub-a_lb)
                               bias_lin = -b_ub*a_lb/(b_ub-a_lb)
                               y.append(m.addVar(name=var_str))
                               # Relu(h) = grad*h+bias
                               m.addConstr(y[i]>= 0) 
-                              m.addConstr(y[i]>= expr0_dict[layerno][i] )
-                              m.addConstr(y[i]== grad_lin*expr0_dict[layerno][i]+bias_lin) 
+                              m.addConstr(y[i]>= expr0_list[i] )
+                              m.addConstr(y[i]== grad_lin*expr0_list[i]+bias_lin) 
+                          #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
                      # Gather var list y as input for the next layer (may or may not be used)
-                     var_dict.update({layerno+1:y})
                      m.update()
                      # Empty as place holder for final bounds of the layer
                      y_lb=[]
@@ -283,7 +280,11 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                          m.update()
                          m.optimize()
                          y_ub.append(y[i].x)
+                         #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                         if (layerno==numlayer-1):
+                             print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
                      # Construct Elina Box    
+                     var_list=y
                      element = toElina(y_lb,y_ub,man,num_out_pixels) 
             nn.ffn_counter+=1 
 
@@ -340,7 +341,7 @@ def switch(netname):
         '4_1024':[True, True, True, True],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
-        '6_100':[True, True, True, True, True, True],
+        '6_100':[True,True,True, True, True,True],
         #'6_100':[False,False,False,False,False,False,],
         '6_200':[True, True, True, True, True, True],
         '9_100':[True, True, True, True, True, True, True, True, True],
