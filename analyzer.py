@@ -265,7 +265,7 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                               # Relu(h) = grad*h+bias
                               m.addConstr(y[i]>= 0) 
                               m.addConstr(y[i]>= expr0_dict[layerno][i] )
-                              m.addConstr(y[i]== grad_lin*expr0_dict[layerno][i]+bias_lin) 
+                              m.addConstr(y[i]<= grad_lin*expr0_dict[layerno][i]+bias_lin) 
                      # Gather var list y as input for the next layer (may or may not be used)
                      var_dict.update({layerno+1:y})
                      m.update()
@@ -335,12 +335,12 @@ def switch(netname):
     return {
         #'3_10':[False,False,False],
         '3_10':[True, True, True],
-        '3_20':[True, True, True],
+        '3_20':[True, True, False],#3*true:90 tft:33 ftt:71 ttf:81
         '3_50':[True, True, True],
         '4_1024':[True, True, True, True],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
-        '6_100':[True, True, True, True, True, True],
+        '6_100':[True, True, True, False, False, False],
         #'6_100':[False,False,False,False,False,False,],
         '6_200':[True, True, True, True, True, True],
         '9_100':[True, True, True, True, True, True, True, True, True],
