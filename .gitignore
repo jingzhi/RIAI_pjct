@@ -1,3 +1,7 @@
 #ignore output
 output/
 *.log
+*.csv
+*.zip
+riai_project_ground_truth/
+dummy
