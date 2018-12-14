@@ -1,7 +1,7 @@
 #!/bash/sh
 # syntax sh tb.sh -netname -imgname
 # here change epsilon
-epsilon=0.01
+epsilon=0.001
 
 if [ "$1" = "" ];
 then

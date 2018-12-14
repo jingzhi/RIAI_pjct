@@ -180,10 +180,11 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
     ## initialise Gorubi ##
     m = Model("Gorubi")
     m.Params.OutputFlag=0
-    var_list=[]
-    for i in range(num_pixels):
-        var_list.append( m.addVar(lb=LB_N0[i],ub=UB_N0[i]) )
-    m.update()
+    if(LB_N0[0]!=UB_N0[0]):
+        var_list=[]
+        for i in range(num_pixels):
+            var_list.append( m.addVar(lb=LB_N0[i],ub=UB_N0[i]) )
+        m.update()
 
     # go through each layer
     for layerno in range(numlayer):
@@ -199,31 +200,30 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                 for i in range(num_out_pixels):
                     activat0_linexpr0=LinExpr(weights[i].tolist(),var_list)+biases[i]
                     expr0_list.append(activat0_linexpr0)  
-            else:
             #******* ELINA For affine *******
-                # get current dimention of element
-                dims = elina_abstract0_dimension(man,element) #element: abstraction of box
-                num_in_pixels = dims.intdim + dims.realdim
-                # construct dimension to be added
-                dimadd = elina_dimchange_alloc(0,num_out_pixels)    
-                for i in range(num_out_pixels):
-                    dimadd.contents.dim[i] = num_in_pixels
-                elina_abstract0_add_dimensions(man, True, element, dimadd, False)
-                elina_dimchange_free(dimadd)
-                # weights to contiguousarray
-                np.ascontiguousarray(weights, dtype=np.double)
-                np.ascontiguousarray(biases, dtype=np.double)
-                var = num_in_pixels
-                for i in range(num_out_pixels):
-                    tdim= ElinaDim(var)
-                    linexpr0 = generate_linexpr0(weights[i],biases[i],num_in_pixels)
-                    element = elina_abstract0_assign_linexpr_array(man, True, element, tdim, linexpr0, 1, None)
-                    var+=1
-                dimrem = elina_dimchange_alloc(0,num_in_pixels)
-                for i in range(num_in_pixels):
-                    dimrem.contents.dim[i] = i
-                elina_abstract0_remove_dimensions(man, True, element, dimrem)
-                elina_dimchange_free(dimrem)
+            # get current dimention of element
+            dims = elina_abstract0_dimension(man,element) #element: abstraction of box
+            num_in_pixels = dims.intdim + dims.realdim
+            # construct dimension to be added
+            dimadd = elina_dimchange_alloc(0,num_out_pixels)    
+            for i in range(num_out_pixels):
+                dimadd.contents.dim[i] = num_in_pixels
+            elina_abstract0_add_dimensions(man, True, element, dimadd, False)
+            elina_dimchange_free(dimadd)
+            # weights to contiguousarray
+            np.ascontiguousarray(weights, dtype=np.double)
+            np.ascontiguousarray(biases, dtype=np.double)
+            var = num_in_pixels
+            for i in range(num_out_pixels):
+                tdim= ElinaDim(var)
+                linexpr0 = generate_linexpr0(weights[i],biases[i],num_in_pixels)
+                element = elina_abstract0_assign_linexpr_array(man, True, element, tdim, linexpr0, 1, None)
+                var+=1
+            dimrem = elina_dimchange_alloc(0,num_in_pixels)
+            for i in range(num_in_pixels):
+                dimrem.contents.dim[i] = i
+            elina_abstract0_remove_dimensions(man, True, element, dimrem)
+            elina_dimchange_free(dimrem)
 
             #******* If ReLU *******
             if(nn.layertypes[layerno]=='ReLU'): 
@@ -235,18 +235,39 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                 ## Linear Solver
                 else:
                      layers_with_linear_solver.append(layerno)
-                     #a_lb_array,b_ub_array = getBoundsFromElina(element,man,num_out_pixels)
+                     a_lb_array_elina,b_ub_array_elina = getBoundsFromElina(element,man,num_out_pixels)
                      # List of output variable of the layer
                      y=[]
+                     # nom of zero neuron
+                     ub_zero_counter=0
+                     # Placeholder for bounds calculated by linear solver
+                     b_ub_array_lin=[]
+                     a_lb_array_lin=[]
+                     # Bounds as doule to avoid repeated array access
+                     b_ub=0
+                     a_lb=0
                      # For each output neuron, perform ReLu approximation
                      for i in range(num_out_pixels):
-                         m.setObjective(expr0_list[i],GRB.MINIMIZE)
-                         m.optimize()
-                         a_lb=expr0_list[i].getValue()
-                         m.setObjective(expr0_list[i],GRB.MAXIMIZE)
-                         m.optimize()
-                         b_ub=expr0_list[i].getValue()
+                         # Check Elina upper bound, avoid optimisation if less than zero
+                         if b_ub_array_elina[i] <=0:
+                             b_ub=0
+                             a_lb=0
+                         else:
+                             m.setObjective(expr0_list[i],GRB.MAXIMIZE)
+                             m.optimize()
+                             b_ub=expr0_list[i].getValue()
+                             # Check ub first, avoid extra optimisation if less than zero
+                             if(b_ub<=0):
+                                 b_ub =0
+                                 a_lb =0
+                             else:
+                                 m.setObjective(expr0_list[i],GRB.MINIMIZE)
+                                 m.optimize()
+                                 a_lb=expr0_list[i].getValue()
+                         a_lb_array_lin.append(a_lb)
+                         b_ub_array_lin.append(b_ub)
                          if(b_ub<=0):
+                             ub_zero_counter+=1
                              # Relu(h) = 0
                              y.append(m.addVar(lb=0.0,ub=0.0))
                          elif(a_lb>=0):
@@ -261,14 +282,36 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                              m.addConstr(y[i]>= 0) 
                              m.addConstr(y[i]>= expr0_list[i] )
                              m.addConstr(y[i]<= grad_lin*expr0_list[i]+bias_lin) 
-                         print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
+                         #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
+                         #print('Elina:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb_array_elina[i],b_ub_array_elina[i]))
                      m.update()
                      # Gather var list y as input for the next layer (may or may not be used)
                      var_list=y
                      # Empty as place holder for final bounds of the layer
                      y_lb=[]
                      y_ub=[]
-                     if (layerno==numlayer-1):
+                     print("layer{},zero neurons:{} out of {}".format(layerno,ub_zero_counter,num_out_pixels))
+                     # If not at the last layer
+                     if (layerno != numlayer-1):
+                         # If number of zero neurons is too small, chose ELINA in the next layer
+                         if( ub_zero_counter < num_out_pixels*0.40):
+                             LinearSolver[layerno+1] = False #True# editable
+                         # If next layer is Elina, evaluate bounds to construct new element from linear solver results
+                         if (LinearSolver[layerno+1]==False):
+                             for i in range(num_out_pixels):
+                                 # minimise for lower bound
+                                 m.setObjective(y[i],GRB.MINIMIZE)
+                                 m.optimize()
+                                 y_lb.append(y[i].x)
+                                 # maximise for upper bound
+                                 m.setObjective(y[i],GRB.MAXIMIZE)
+                                 m.optimize()
+                                 y_ub.append(y[i].x)
+                                 #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                                 # Construct Elina Box    
+                             element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                     # If at last layer, always constuct Elina Box
+                     else:
                          for i in range(num_out_pixels):
                              # minimise for lower bound
                              m.setObjective(y[i],GRB.MINIMIZE)
@@ -278,10 +321,8 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                              m.setObjective(y[i],GRB.MAXIMIZE)
                              m.optimize()
                              y_ub.append(y[i].x)
-                             #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                             if (layerno==numlayer-1):
-                                 print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                         # Construct Elina Box    
+                             print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                             # Construct Elina Box    
                          element = toElina(y_lb,y_ub,man,num_out_pixels) 
             nn.ffn_counter+=1 
 
@@ -295,7 +336,6 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
 
            
     # if epsilon is zero, try to classify else verify robustness 
-    
     verified_flag = True
     predicted_label = 0
     if(LB_N0[0]==UB_N0[0]): # LB=UB => epsilon =0 
@@ -335,7 +375,7 @@ def switch(netname):
         '3_10':[True, True, True],
         '3_20':[True, True, False],#3*true:90 tft:33 ftt:71 ttf:81
         '3_50':[True, True, True],
-        '4_1024':[True, True, True, True],
+        '4_1024':[True, True, False, True],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
         '6_100':[True, True, True, False, False, False],
