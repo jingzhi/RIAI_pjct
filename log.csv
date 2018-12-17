@@ -1205,3 +1205,210 @@ network,image,epsilon,is_valid,is_verified,layers_with_linear_solver,time
 6_50,img98,0.01,True,True,"[True, True, True, True, True, True]",0.9582607746124268
 6_50,img99,0.01,True,True,"[True, True, True, True, True, True]",0.6594951152801514
 6_50,img9,0.01,True,True,"[True, True, True, True, True, True]",0.7303988933563232
+4_1024,img0,0.001,True,True,"[True, True, False, True]",339.25973892211914
+4_1024,img10,0.001,True,True,"[True, True, False, True]",319.85546803474426
+4_1024,img11,0.001,True,False,"[True, True, False, True]",269.990225315094
+4_1024,img12,0.001,True,False,"[True, True, False, True]",207.50059866905212
+4_1024,img13,0.001,True,True,"[True, True, False, True]",236.8466145992279
+4_1024,img14,0.001,True,True,"[True, True, False, True]",222.75509667396545
+4_1024,img15,0.001,True,False,"[True, True, False, True]",233.2731008529663
+4_1024,img16,0.001,True,True,"[True, True, False, True]",235.69289660453796
+4_1024,img17,0.001,True,True,"[True, True, False, True]",216.963219165802
+4_1024,img18,0.001,True,True,"[True, True, False, True]",193.08847641944885
+4_1024,img19,0.001,True,True,"[True, True, False, True]",202.82872819900513
+4_1024,img1,0.001,True,False,"[True, True, False, True]",211.82837200164795
+4_1024,img20,0.001,False,False,"[True, True, False, True]",2.0265579223632812e-05
+4_1024,img21,0.001,True,False,"[True, True, False, True]",207.9335401058197
+4_1024,img22,0.001,True,True,"[True, True, False, True]",202.7432520389557
+4_1024,img23,0.001,True,True,"[True, True, False, True]",219.01611876487732
+4_1024,img24,0.001,True,False,"[True, True, False, True]",281.4853160381317
+4_1024,img25,0.001,True,True,"[True, True, False, True]",189.4877805709839
+4_1024,img26,0.001,True,False,"[True, True, False, True]",227.41972422599792
+4_1024,img27,0.001,True,False,"[True, True, False, True]",194.05797696113586
+4_1024,img28,0.001,True,True,"[True, True, False, True]",184.46930718421936
+4_1024,img29,0.001,True,True,"[True, True, False, True]",217.03021216392517
+4_1024,img2,0.001,True,False,"[True, True, False, True]",453.8941433429718
+4_1024,img30,0.001,True,True,"[True, True, False, True]",182.00100660324097
+4_1024,img31,0.001,True,True,"[True, True, False, True]",408.14181995391846
+4_1024,img32,0.001,True,True,"[True, True, False, True]",278.46491169929504
+4_1024,img33,0.001,True,False,"[True, True, False, True]",333.03697180747986
+4_1024,img34,0.001,True,True,"[True, True, False, True]",205.83998346328735
+4_1024,img35,0.001,True,True,"[True, True, False, True]",252.54424047470093
+4_1024,img36,0.001,True,True,"[True, True, False, True]",349.4786055088043
+4_1024,img37,0.001,True,True,"[True, True, False, True]",323.5750072002411
+4_1024,img38,0.001,True,False,"[True, True, False, True]",415.36563658714294
+4_1024,img39,0.001,True,True,"[True, True, False, True]",348.6152400970459
+4_1024,img3,0.001,True,True,"[True, True, False, True]",317.27430486679077
+4_1024,img40,0.001,True,True,"[True, True, False, True]",381.80716037750244
+4_1024,img41,0.001,True,True,"[True, True, False, True]",362.5259187221527
+4_1024,img42,0.001,True,False,"[True, True, False, True]",353.3134882450104
+4_1024,img43,0.001,True,False,"[True, True, False, True]",411.01564836502075
+4_1024,img44,0.001,True,True,"[True, True, False, True]",350.57288241386414
+4_1024,img45,0.001,True,False,"[True, True, False, True]",360.5252809524536
+4_1024,img46,0.001,True,True,"[True, True, False, True]",375.72804284095764
+4_1024,img47,0.001,True,False,"[True, True, False, True]",374.2197701931
+4_1024,img48,0.001,True,False,"[True, True, False, True]",322.0139195919037
+4_1024,img49,0.001,False,False,"[True, True, False, True]",3.218650817871094e-05
+4_1024,img4,0.001,True,False,"[True, True, False, True]",354.58393836021423
+4_1024,img50,0.001,True,False,"[True, True, False, True]",403.23207688331604
+4_1024,img51,0.001,True,True,"[True, True, False, True]",332.7203884124756
+4_1024,img52,0.001,True,False,"[True, True, False, True]",381.79514336586
+4_1024,img53,0.001,True,False,"[True, True, False, True]",456.93443036079407
+4_1024,img54,0.001,True,False,"[True, True, False, True]",332.8427302837372
+4_1024,img55,0.001,True,True,"[True, True, False, True]",334.4248969554901
+4_1024,img56,0.001,True,True,"[True, True, False, True]",359.0364532470703
+4_1024,img57,0.001,True,False,"[True, True, False, True]",390.88772988319397
+4_1024,img58,0.001,True,True,"[True, True, False, True]",356.686491727829
+4_1024,img59,0.001,True,False,"[True, True, False, True]",367.53632068634033
+4_1024,img5,0.001,True,True,"[True, True, False, True]",342.02423429489136
+4_1024,img60,0.001,True,True,"[True, True, False, True]",284.4868514537811
+4_1024,img61,0.001,True,False,"[True, True, False, True]",281.1367630958557
+4_1024,img62,0.001,True,False,"[True, True, False, True]",414.2102210521698
+4_1024,img63,0.001,True,False,"[True, True, False, True]",3280.3040211200714
+4_1024,img64,0.001,True,True,"[True, True, False, True]",322.02322816848755
+4_1024,img65,0.001,True,False,"[True, True, False, True]",394.5133216381073
+4_1024,img66,0.001,True,False,"[True, True, False, True]",359.36851143836975
+4_1024,img67,0.001,True,False,"[True, True, False, True]",387.8130314350128
+4_1024,img68,0.001,True,True,"[True, True, False, True]",292.8921539783478
+4_1024,img69,0.001,True,True,"[True, True, False, True]",375.23974323272705
+4_1024,img6,0.001,True,False,"[True, True, False, True]",199.19929718971252
+4_1024,img70,0.001,True,True,"[True, True, False, True]",209.33075141906738
+4_1024,img71,0.001,True,True,"[True, True, False, True]",197.19526863098145
+4_1024,img72,0.001,True,False,"[True, True, False, True]",240.98234796524048
+4_1024,img73,0.001,True,False,"[True, True, False, True]",215.326762676239
+4_1024,img74,0.001,True,True,"[True, True, False, True]",216.6086790561676
+4_1024,img75,0.001,True,True,"[True, True, False, True]",201.3543028831482
+4_1024,img76,0.001,True,True,"[True, True, False, True]",230.10793566703796
+4_1024,img77,0.001,True,True,"[True, True, False, True]",420.49104857444763
+4_1024,img78,0.001,True,False,"[True, True, False, True]",235.99263048171997
+4_1024,img79,0.001,True,True,"[True, True, False, True]",187.12099051475525
+4_1024,img7,0.001,True,False,"[True, True, False, True]",231.78298616409302
+4_1024,img80,0.001,True,False,"[True, True, False, True]",238.27720308303833
+4_1024,img81,0.001,True,False,"[True, True, False, True]",278.96852803230286
+4_1024,img82,0.001,True,True,"[True, True, False, True]",243.44804525375366
+4_1024,img83,0.001,True,False,"[True, True, False, True]",247.7924828529358
+4_1024,img84,0.001,True,False,"[True, True, False, True]",208.50278520584106
+4_1024,img85,0.001,True,True,"[True, True, False, True]",220.55658626556396
+4_1024,img86,0.001,True,True,"[True, True, False, True]",217.14122796058655
+4_1024,img87,0.001,True,True,"[True, True, False, True]",212.74585628509521
+4_1024,img88,0.001,True,True,"[True, True, False, True]",231.13806247711182
+4_1024,img89,0.001,True,True,"[True, True, False, True]",241.90687918663025
+4_1024,img8,0.001,True,False,"[True, True, False, True]",241.6329653263092
+4_1024,img90,0.001,True,True,"[True, True, False, True]",208.987957239151
+4_1024,img91,0.001,True,True,"[True, True, False, True]",216.5442762374878
+4_1024,img92,0.001,True,False,"[True, True, False, True]",324.8492567539215
+4_1024,img93,0.001,True,True,"[True, True, False, True]",179.49282217025757
+4_1024,img94,0.001,True,True,"[True, True, False, True]",175.33605003356934
+4_1024,img95,0.001,True,False,"[True, True, False, True]",200.35135865211487
+4_1024,img96,0.001,True,False,"[True, True, False, True]",344.0291500091553
+4_1024,img97,0.001,True,True,"[True, True, False, True]",176.04113006591797
+4_1024,img98,0.001,True,False,"[True, True, False, True]",222.2451193332672
+4_1024,img99,0.001,True,True,"[True, True, False, True]",214.45020985603333
+4_1024,img9,0.001,True,False,"[True, True, False, True]",205.6551640033722
+4_1024,img0,0.001,True,True,"[True, True, True, False]",695.0932848453522
+4_1024,img10,0.001,True,True,"[True, True, True, False]",554.8858079910278
+4_1024,img11,0.001,True,True,"[True, True, True, False]",46940.7191259861
+4_1024,img12,0.001,True,True,"[True, True, True, False]",623.7653007507324
+4_1024,img13,0.001,True,True,"[True, True, True, False]",680.6725172996521
+4_1024,img14,0.001,True,True,"[True, True, True, False]",663.8266987800598
+4_1024,img15,0.001,True,True,"[True, True, True, False]",851.9460804462433
+4_1024,img16,0.001,True,True,"[True, True, True, False]",967.6117587089539
+4_1024,img17,0.001,True,True,"[True, True, True, False]",917.5869042873383
+4_1024,img18,0.001,True,True,"[True, True, True, False]",890.3498246669769
+4_1024,img19,0.001,True,True,"[True, True, True, False]",1000.0364644527435
+4_1024,img1,0.001,True,True,"[True, True, True, False]",796.5055267810822
+4_1024,img20,0.001,False,False,"[True, True, True, False]",4.935264587402344e-05
+4_1024,img21,0.001,True,True,"[True, True, True, False]",1023.7654898166656
+4_1024,img22,0.001,True,True,"[True, True, True, False]",839.9518721103668
+4_1024,img23,0.001,True,True,"[True, True, True, False]",1089.2486777305603
+4_1024,img24,0.001,True,True,"[True, True, True, False]",1543.112946510315
+4_1024,img25,0.001,True,True,"[True, True, True, False]",732.3511896133423
+4_1024,img26,0.001,True,True,"[True, True, True, False]",1125.8166589736938
+6_100,img0,0.01,True,False,"[True, True, True, False, False, False]",4.803062915802002
+6_100,img10,0.01,True,False,"[True, True, True, False, False, False]",3.904008150100708
+6_100,img11,0.01,True,False,"[True, True, True, False, False, False]",4.835567951202393
+6_100,img12,0.01,True,False,"[True, True, True, False, False, False]",6.759194850921631
+6_100,img13,0.01,True,False,"[True, True, True, False, False, False]",3.1903226375579834
+6_100,img14,0.01,True,False,"[True, True, True, False, False, False]",5.145061492919922
+6_100,img15,0.01,True,False,"[True, True, True, False, False, False]",5.960830926895142
+6_100,img16,0.01,True,False,"[True, True, True, False, False, False]",5.678372383117676
+6_100,img17,0.01,True,False,"[True, True, True, False, False, False]",4.125169515609741
+6_100,img18,0.01,True,False,"[True, True, True, False, False, False]",3.630006790161133
+6_100,img19,0.01,True,False,"[True, True, True, False, False, False]",7.7084949016571045
+6_100,img1,0.01,True,False,"[True, True, True, False, False, False]",5.830430507659912
+6_100,img20,0.01,True,False,"[True, True, True, False, False, False]",8.349686861038208
+6_100,img21,0.01,True,False,"[True, True, True, False, False, False]",5.067840099334717
+6_100,img22,0.01,True,False,"[True, True, True, False, False, False]",4.560496091842651
+6_100,img23,0.01,True,False,"[True, True, True, False, False, False]",4.292916774749756
+6_100,img24,0.01,True,False,"[True, True, True, False, False, False]",11.167099952697754
+6_100,img25,0.01,True,True,"[True, True, True, True, True, True]",4.392104864120483
+6_100,img26,0.01,True,True,"[True, True, True, True, True, True]",9.542265176773071
+6_100,img0,0.01,True,True,"[True, True, True, True, True, True]",11.445369720458984
+6_100,img10,0.01,True,True,"[True, True, True, True, True, True]",7.996312141418457
+6_100,img11,0.01,True,True,"[True, True, True, True, True, True]",13.989928722381592
+6_100,img0,0.01,True,True,"[True, True, True, True, True, True]",9.72957158088684
+6_100,img10,0.01,True,True,"[True, True, True, True, True, True]",9.920549869537354
+6_100,img11,0.01,True,True,"[True, True, True, True, True, True]",13.863185405731201
+6_100,img12,0.01,True,True,"[True, True, True, True, True, True]",14.681317806243896
+6_100,img13,0.01,True,True,"[True, True, True, True, True, True]",10.055860996246338
+6_100,img14,0.01,True,True,"[True, True, True, True, True, True]",13.779526472091675
+6_100,img15,0.01,True,True,"[True, True, True, True, True, True]",20.687608003616333
+6_100,img16,0.01,True,True,"[True, True, True, True, True, True]",21.904726028442383
+6_100,img0,0.01,True,True,"[True, True, True, True, True, False]",12.05363917350769
+6_100,img10,0.01,True,True,"[True, True, True, True, True, False]",9.97910213470459
+6_100,img11,0.01,True,True,"[True, True, True, True, True, False]",15.344901084899902
+6_100,img12,0.01,True,True,"[True, True, True, True, True, False]",21.02004361152649
+6_100,img13,0.01,True,True,"[True, True, True, True, True, False]",8.521621465682983
+6_100,img14,0.01,True,True,"[True, True, True, True, True, False]",12.650694131851196
+6_100,img15,0.01,True,True,"[True, True, True, True, True, True]",20.003530979156494
+6_100,img16,0.01,True,True,"[True, True, True, True, True, True]",17.89448380470276
+6_100,img17,0.01,True,True,"[True, True, True, True, True, True]",8.408573627471924
+6_100,img18,0.01,True,True,"[True, True, True, True, True, True]",9.217068433761597
+6_100,img19,0.01,True,True,"[True, True, True, True, True, True]",12.43026328086853
+6_100,img1,0.01,True,True,"[True, True, True, True, True, True]",9.425548553466797
+6_100,img0,0.05,True,False,"[True, False, True, False, True, False]",16.96956157684326
+6_100,img10,0.05,True,False,"[True, False, True, False, True, False]",12.952943325042725
+6_100,img11,0.05,True,False,"[True, False, True, False, True, False]",19.150128841400146
+6_100,img12,0.05,True,False,"[True, False, True, False, True, False]",17.381237745285034
+6_100,img13,0.05,True,False,"[True, False, True, False, True, False]",12.71419906616211
+6_100,img14,0.05,True,False,"[True, True, True, True, True, True]",390.815589427948
+6_100,img15,0.05,True,False,"[True, True, True, True, True, True]",401.25588846206665
+6_100,img16,0.05,True,False,"[True, True, True, True, True, True]",274.7969889640808
+6_100,img17,0.05,True,False,"[True, True, True, True, True, True]",182.10135650634766
+6_100,img18,0.05,True,False,"[True, True, True, True, True, True]",185.7035472393036
+6_100,img19,0.05,True,False,"[True, True, True, True, True, True]",264.90237069129944
+6_100,img1,0.05,True,False,"[True, True, True, True, True, True]",169.859530210495
+6_100,img20,0.05,True,False,"[True, True, True, True, True, True]",188.86915850639343
+6_100,img21,0.05,True,False,"[True, True, True, True, True, True]",659.7930634021759
+6_100,img22,0.05,True,False,"[True, True, True, True, True, True]",204.10448098182678
+6_100,img23,0.05,True,False,"[True, True, True, True, True, True]",228.88948607444763
+6_100,img24,0.05,True,False,"[True, True, True, True, True, True]",274.89494824409485
+6_100,img25,0.05,True,False,"[True, True, True, True, True, True]",116.60964298248291
+6_100,img26,0.05,True,False,"[True, True, True, True, True, True]",246.38726019859314
+6_100,img27,0.05,True,False,"[True, True, True, True, True, True]",180.42449069023132
+6_100,img28,0.05,True,False,"[True, True, True, True, True, True]",125.91577482223511
+6_100,img29,0.05,True,False,"[True, True, True, True, True, True]",233.75602626800537
+6_100,img2,0.05,True,False,"[True, True, True, True, True, True]",260.5849452018738
+6_100,img30,0.05,True,False,"[True, True, True, True, True, True]",156.18406534194946
+6_100,img31,0.05,True,False,"[True, True, True, True, True, True]",234.01880979537964
+6_100,img32,0.05,True,False,"[True, True, True, True, True, True]",171.27837777137756
+6_100,img33,0.05,True,False,"[True, True, True, True, True, True]",210.79949688911438
+6_100,img34,0.05,True,False,"[True, True, True, True, True, True]",176.71841549873352
+6_100,img35,0.05,True,False,"[True, True, True, True, True, True]",147.68385863304138
+6_100,img36,0.05,True,False,"[True, True, True, True, True, True]",334.5080473423004
+6_100,img37,0.05,True,False,"[True, True, True, True, True, True]",373.527850151062
+6_100,img38,0.05,True,False,"[True, True, True, True, True, True]",373.91194105148315
+6_100,img39,0.05,True,False,"[True, True, True, True, True, True]",306.37648010253906
+6_100,img3,0.05,True,False,"[True, True, True, True, True, True]",241.56511855125427
+6_100,img40,0.05,True,False,"[True, True, True, True, True, True]",475.2234926223755
+6_100,img41,0.05,True,False,"[True, True, True, True, True, True]",411.11193776130676
+6_100,img42,0.05,True,False,"[True, True, True, True, True, True]",345.0801959037781
+6_100,img43,0.05,True,False,"[True, True, True, True, True, True]",52857.343247652054
+6_100,img44,0.05,True,False,"[True, True, True, True, True, True]",394.75446581840515
+6_100,img45,0.05,True,False,"[True, True, True, True, True, True]",398.90500831604004
+6_100,img46,0.05,True,False,"[True, True, True, True, True, True]",352.4587712287903
+6_100,img47,0.05,True,False,"[True, True, True, True, True, True]",444.46492743492126
+6_100,img48,0.05,True,False,"[True, True, True, True, True, True]",213.639710187912
+6_100,img49,0.05,True,False,"[True, True, True, True, True, True]",345.5414867401123
+6_100,img4,0.05,True,False,"[True, True, True, True, True, True]",385.35136890411377
+6_100,img50,0.05,True,False,"[True, True, True, True, True, True]",339.2713975906372

@@ -236,6 +236,7 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                 else:
                      layers_with_linear_solver.append(layerno)
                      a_lb_array_elina,b_ub_array_elina = getBoundsFromElina(element,man,num_out_pixels)
+                     element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
                      # List of output variable of the layer
                      y=[]
                      # nom of zero neuron
@@ -294,8 +295,8 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                      # If not at the last layer
                      if (layerno != numlayer-1):
                          # If number of zero neurons is too small, chose ELINA in the next layer
-                         if( ub_zero_counter < num_out_pixels*0.40):
-                             LinearSolver[layerno+1] = False #True# editable
+                         #if( ub_zero_counter < num_out_pixels*0.40):
+                         #    LinearSolver[layerno+1] = False #True# editable
                          # If next layer is Elina, evaluate bounds to construct new element from linear solver results
                          if (LinearSolver[layerno+1]==False):
                              for i in range(num_out_pixels):
@@ -310,6 +311,8 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                                  #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
                                  # Construct Elina Box    
                              element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                         else:
+                             element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
                      # If at last layer, always constuct Elina Box
                      else:
                          for i in range(num_out_pixels):
@@ -375,10 +378,10 @@ def switch(netname):
         '3_10':[True, True, True],
         '3_20':[True, True, False],#3*true:90 tft:33 ftt:71 ttf:81
         '3_50':[True, True, True],
-        '4_1024':[True, True, False, True],
+        '4_1024':[True, True, True, False],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
-        '6_100':[True, True, True, False, False, False],
+        '6_100':[True, True, True, True, True, True],
         #'6_100':[False,False,False,False,False,False,],
         #'6_200':[False,False,False,False,False,True,],
         '6_200':[True, True, True, True, True, True],
