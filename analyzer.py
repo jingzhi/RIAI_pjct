@@ -34,7 +34,6 @@ import os
 
 libc = CDLL(find_library('c'))
 cstdout = c_void_p.in_dll(libc, 'stdout')
-layers_with_linear_solver=[]
 class layers:
     def __init__(self):
         self.layertypes = []
@@ -146,6 +145,40 @@ def toElina(lb,ub,man,num_pixels):
     elina_interval_array_free(itv,num_pixels)
     return element
 
+def updateElina(lb,ub,man,element,num_pixels):
+    for i in range(num_pixels):
+        a=lb[i]
+        b=ub[i]
+        #create an array of two linear constraints
+        lincons0_array = elina_lincons0_array_make(2)
+        #Create a greater than or equal to inequality for the lower bound
+        lincons0_array.p[0].constyp = c_uint(ElinaConstyp.ELINA_CONS_SUPEQ)
+        linexpr0 = elina_linexpr0_alloc(ElinaLinexprDiscr.ELINA_LINEXPR_SPARSE, 1)
+        cst = pointer(linexpr0.contents.cst)
+        #plug the lower bound “a” here
+        elina_scalar_set_double(cst.contents.val.scalar, -a)
+        linterm = pointer(linexpr0.contents.p.linterm[0])
+        #plug the dimension “i” here
+        linterm.contents.dim = ElinaDim(i)
+        coeff = pointer(linterm.contents.coeff)
+        elina_scalar_set_double(coeff.contents.val.scalar, 1)
+        lincons0_array.p[0].linexpr0 = linexpr0
+        #create a greater than or equal to inequality for the upper bound
+        lincons0_array.p[1].constyp = c_uint(ElinaConstyp.ELINA_CONS_SUPEQ)
+        linexpr0 = elina_linexpr0_alloc(ElinaLinexprDiscr.ELINA_LINEXPR_SPARSE, 1)
+        cst = pointer(linexpr0.contents.cst)
+        #plug the upper bound “b” here
+        elina_scalar_set_double(cst.contents.val.scalar, b)
+        linterm = pointer(linexpr0.contents.p.linterm[0])
+        #plug the dimension “i” here
+        linterm.contents.dim = ElinaDim(i)
+        coeff = pointer(linterm.contents.coeff)
+        elina_scalar_set_double(coeff.contents.val.scalar, -1)
+        lincons0_array.p[1].linexpr0 = linexpr0
+        #perform the intersection
+        element = elina_abstract0_meet_lincons_array(man,True,element,lincons0_array)
+    return element
+
 def getVarListfromElina(model,element,man,num_pixels,layerno):
     var_list=[]
     lb=[]
@@ -170,6 +203,7 @@ def getBoundsFromElina(element,man,num_pixels):
     return lb,ub
 
 def analyze(nn, LB_N0, UB_N0, label, layer_pattern):    
+    internalStart=time.time()
     LinearSolver = layer_pattern #True# editable
     num_pixels = len(LB_N0)
     nn.ffn_counter = 0
@@ -180,6 +214,7 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
     ## initialise Gorubi ##
     m = Model("Gorubi")
     m.Params.OutputFlag=0
+    #m.Params.TimeLimit=420
     if(LB_N0[0]!=UB_N0[0]):
         var_list=[]
         for i in range(num_pixels):
@@ -196,10 +231,14 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
             num_out_pixels = len(weights)
             # ****** Linear solver affine *******
             expr0_list=[]
-            if ( LinearSolver[layerno] and (LB_N0[0]!=UB_N0[0]) ):
+            if ( (LB_N0[0]!=UB_N0[0]) ):
+            #if ( LinearSolver[layerno] and (LB_N0[0]!=UB_N0[0]) ):
                 for i in range(num_out_pixels):
                     activat0_linexpr0=LinExpr(weights[i].tolist(),var_list)+biases[i]
                     expr0_list.append(activat0_linexpr0)  
+                if(nn.layertypes[layerno] == 'Affine'):    
+                    print("affine with gurobi")
+                    var_list=expr0_list
             #******* ELINA For affine *******
             # get current dimention of element
             dims = elina_abstract0_dimension(man,element) #element: abstraction of box
@@ -228,105 +267,130 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
             #******* If ReLU *******
             if(nn.layertypes[layerno]=='ReLU'): 
                 ## ELINA
-                if ((not LinearSolver[layerno]) or (LB_N0[0]==UB_N0[0])):
+                if ((LB_N0[0]==UB_N0[0])):
                      element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
-                     if (LB_N0[0] != UB_N0[0]):
-                         var_list= getVarListfromElina(m,element,man,num_out_pixels,layerno+1)
                 ## Linear Solver
                 else:
-                     layers_with_linear_solver.append(layerno)
-                     a_lb_array_elina,b_ub_array_elina = getBoundsFromElina(element,man,num_out_pixels)
-                     element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
-                     # List of output variable of the layer
-                     y=[]
-                     # nom of zero neuron
-                     ub_zero_counter=0
-                     # Placeholder for bounds calculated by linear solver
-                     b_ub_array_lin=[]
-                     a_lb_array_lin=[]
-                     # Bounds as doule to avoid repeated array access
-                     b_ub=0
-                     a_lb=0
-                     # For each output neuron, perform ReLu approximation
-                     for i in range(num_out_pixels):
-                         # Check Elina upper bound, avoid optimisation if less than zero
-                         if b_ub_array_elina[i] <=0:
-                             b_ub=0
-                             a_lb=0
-                         else:
-                             m.setObjective(expr0_list[i],GRB.MAXIMIZE)
-                             m.optimize()
-                             b_ub=expr0_list[i].getValue()
-                             # Check ub first, avoid extra optimisation if less than zero
-                             if(b_ub<=0):
-                                 b_ub =0
-                                 a_lb =0
-                             else:
-                                 m.setObjective(expr0_list[i],GRB.MINIMIZE)
-                                 m.optimize()
-                                 a_lb=expr0_list[i].getValue()
-                         a_lb_array_lin.append(a_lb)
-                         b_ub_array_lin.append(b_ub)
-                         if(b_ub<=0):
-                             ub_zero_counter+=1
-                             # Relu(h) = 0
-                             y.append(m.addVar(lb=0.0,ub=0.0))
-                         elif(a_lb>=0):
-                             # Relu(h) = h
-                             y.append(m.addVar(lb=a_lb,ub=b_ub))
-                             m.addConstr(y[i]== expr0_list[i] )
-                         else:
-                             # Relu(h) = grad*h+bias
-                             grad_lin = b_ub/(b_ub-a_lb)
-                             bias_lin = -b_ub*a_lb/(b_ub-a_lb)
-                             y.append(m.addVar())
-                             m.addConstr(y[i]>= 0) 
-                             m.addConstr(y[i]>= expr0_list[i] )
-                             m.addConstr(y[i]<= grad_lin*expr0_list[i]+bias_lin) 
-                         #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
-                         #print('Elina:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb_array_elina[i],b_ub_array_elina[i]))
-                     m.update()
-                     # Gather var list y as input for the next layer (may or may not be used)
-                     var_list=y
-                     # Empty as place holder for final bounds of the layer
-                     y_lb=[]
-                     y_ub=[]
-                     print("layer{},zero neurons:{} out of {}".format(layerno,ub_zero_counter,num_out_pixels))
-                     # If not at the last layer
-                     if (layerno != numlayer-1):
-                         # If number of zero neurons is too small, chose ELINA in the next layer
-                         #if( ub_zero_counter < num_out_pixels*0.40):
-                         #    LinearSolver[layerno+1] = False #True# editable
-                         # If next layer is Elina, evaluate bounds to construct new element from linear solver results
-                         if (LinearSolver[layerno+1]==False):
-                             for i in range(num_out_pixels):
-                                 # minimise for lower bound
-                                 m.setObjective(y[i],GRB.MINIMIZE)
-                                 m.optimize()
-                                 y_lb.append(y[i].x)
-                                 # maximise for upper bound
-                                 m.setObjective(y[i],GRB.MAXIMIZE)
-                                 m.optimize()
-                                 y_ub.append(y[i].x)
-                                 #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                                 # Construct Elina Box    
-                             element = toElina(y_lb,y_ub,man,num_out_pixels) 
-                         else:
-                             element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
-                     # If at last layer, always constuct Elina Box
-                     else:
-                         for i in range(num_out_pixels):
-                             # minimise for lower bound
-                             m.setObjective(y[i],GRB.MINIMIZE)
-                             m.optimize()
-                             y_lb.append(y[i].x)
-                             # maximise for upper bound
-                             m.setObjective(y[i],GRB.MAXIMIZE)
-                             m.optimize()
-                             y_ub.append(y[i].x)
-                             print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                             # Construct Elina Box    
-                         element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                    a_lb_array_elina,b_ub_array_elina = getBoundsFromElina(element,man,num_out_pixels)
+                    # List of output variable of the layer
+                    y=[]
+                    # num of zero neuron
+                    ub_zero_counter=0
+                    # Placeholder for bounds calculated by linear solver
+                    b_ub_array_lin=[]
+                    a_lb_array_lin=[]
+                    # Bounds as doule to avoid repeated array access
+                    b_ub=0
+                    a_lb=0
+                    # For each output neuron, perform ReLu approximation
+                    for i in range(num_out_pixels):
+                        # For layer 0, Elina bounds are precise
+                        if layerno==0:
+                            b_ub=b_ub_array_elina[i]
+                            a_lb=a_lb_array_elina[i]
+                            if b_ub<=0:
+                                ub_zero_counter+=1
+                        # Later layers
+                        else:
+                            # Check Elina upper bound, avoid optimisation if less than zero
+                            if b_ub_array_elina[i] <=0:
+                                ub_zero_counter+=1
+                                b_ub=0
+                                a_lb=0
+                            else:
+                                m.setObjective(expr0_list[i],GRB.MAXIMIZE)
+                                m.optimize()
+                                b_ub=expr0_list[i].getValue()
+                                # Check ub first, avoid extra optimisation if less than zero
+                                if(b_ub<=0):
+                                    ub_zero_counter+=1
+                                    b_ub =0
+                                    a_lb =0
+                                else:
+                                    m.setObjective(expr0_list[i],GRB.MINIMIZE)
+                                    m.optimize()
+                                    a_lb=expr0_list[i].getValue()
+                        a_lb_array_lin.append(a_lb)
+                        b_ub_array_lin.append(b_ub)
+                        if(LinearSolver[layerno]):
+                            if(b_ub<=0):
+                                # Relu(h) = 0
+                                y.append(m.addVar(lb=0.0,ub=0.0))
+                            elif(a_lb>=0):
+                                # Relu(h) = h
+                                y.append(m.addVar(lb=a_lb,ub=b_ub))
+                                m.addConstr(y[i]== expr0_list[i] )
+                            else:
+                                # Relu(h) = grad*h+bias
+                                grad_lin = b_ub/(b_ub-a_lb)
+                                bias_lin = -b_ub*a_lb/(b_ub-a_lb)
+                                y.append(m.addVar())
+                                m.addConstr(y[i]>= 0) 
+                                m.addConstr(y[i]>= expr0_list[i] )
+                                m.addConstr(y[i]<= grad_lin*expr0_list[i]+bias_lin) 
+                        #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
+                        #print('Elina:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb_array_elina[i],b_ub_array_elina[i]))
+                    # Elina ReLu with linear solver input bounds    
+                    element = toElina(a_lb_array_lin,b_ub_array_lin,man,num_out_pixels) 
+                    element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
+                    m.update()
+                    # Gather var list y as input for the next layer (may or may not be used)
+                    if (LinearSolver[layerno]):
+                        var_list=y
+                    else:
+                        var_list= getVarListfromElina(m,element,man,num_out_pixels,layerno+1)
+                    # Empty as place holder for final bounds of the layer
+                    y_lb=[]
+                    y_ub=[]
+                    print("layer{},zero neurons:{} out of {}".format(layerno,ub_zero_counter,num_out_pixels))
+                    # If not at the last layer
+                    if (layerno != numlayer-1):
+                        print("dummy")
+                        # If number of zero neurons is too small, chose ELINA in the next layer
+                        #if( ub_zero_counter < num_out_pixels*0.30):
+                        #    LinearSolver[layerno+1] = False #True# editable
+                        # If next layer is Elina, evaluate bounds to construct new element from linear solver results
+                        #if (LinearSolver[layerno+1]==False and LinearSolver[layerno]==True):
+                        ##if(1):
+                        #    for i in range(num_out_pixels):
+                        #        # minimise for lower bound
+                        #        m.setObjective(y[i],GRB.MINIMIZE)
+                        #        m.optimize()
+                        #        y_lb.append(y[i].x)
+                        #        # maximise for upper bound
+                        #        m.setObjective(y[i],GRB.MAXIMIZE)
+                        #        m.optimize()
+                        #        y_ub.append(y[i].x)
+                        #        #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                        #        # Construct Elina Box    
+                        #    #element = updateElina(y_lb,y_ub,man,element,num_out_pixels) 
+                        #    element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                    # If at last layer, always constuct Elina Box
+                    else:
+                        if (LinearSolver[layerno]==True):
+                            for i in range(num_out_pixels):
+                                if i == label:
+                                    # minimise for lower bound
+                                    m.setObjective(y[i],GRB.MINIMIZE)
+                                    m.optimize()
+                                    y_lb.append(y[i].x)
+                                    # dummy place holder
+                                    y_ub.append(100)
+                                else:    
+                                    # maximise for upper bound
+                                    m.setObjective(y[i],GRB.MAXIMIZE)
+                                    m.optimize()
+                                    y_ub.append(y[i].x)
+                                    # dummy place holder
+                                    y_lb.append(-100)
+                                print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
+                                # Construct Elina Box    
+                            #element = updateElina(y_lb,y_ub,man,element,num_out_pixels) 
+                            element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                        else:
+                            a_lb_array_elina,b_ub_array_elina = getBoundsFromElina(element,man,num_out_pixels)
+                            for i in range(num_out_pixels):
+                                print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb_array_elina[i],b_ub_array_elina[i]))
             nn.ffn_counter+=1 
 
         else:
@@ -376,17 +440,17 @@ def switch(netname):
     return {
         #'3_10':[False,False,False],
         '3_10':[True, True, True],
-        '3_20':[True, True, False],#3*true:90 tft:33 ftt:71 ttf:81
+        '3_20':[True, True, True],#3*true:90 tft:33 ftt:71 ttf:81
         '3_50':[True, True, True],
-        '4_1024':[True, True, True, False],
+        '4_1024':[True, False,True, False],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
         '6_100':[True, True, True, True, True, True],
         #'6_100':[False,False,False,False,False,False,],
         #'6_200':[False,False,False,False,False,True,],
         '6_200':[True, True, True, True, True, True],
-        '9_100':[True, True, True, True, True, True, True, True, True],
-        '9_200':[True, True, True, True, True, True, True, True, True],
+        '9_100':[True, True, True, True, True, True, True, False, True],
+        '9_200':[True, True, True, True, True, True, True, True,False],#, True],
     }[netname]
 #*******************************************
 
