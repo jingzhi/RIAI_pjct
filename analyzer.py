@@ -328,8 +328,6 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                                 m.addConstr(y[i]>= 0) 
                                 m.addConstr(y[i]>= expr0_list[i] )
                                 m.addConstr(y[i]<= grad_lin*expr0_list[i]+bias_lin) 
-                        #print('In:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb,b_ub))
-                        #print('Elina:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,a_lb_array_elina[i],b_ub_array_elina[i]))
                     # Elina ReLu with linear solver input bounds    
                     element = toElina(a_lb_array_lin,b_ub_array_lin,man,num_out_pixels) 
                     element = relu_box_layerwise(man,True,element,0, num_out_pixels) # (man,desctructive,elem,start_offset,num_dimension)
@@ -343,28 +341,14 @@ def analyze(nn, LB_N0, UB_N0, label, layer_pattern):
                     y_lb=[]
                     y_ub=[]
                     print("layer{},zero neurons:{} out of {}".format(layerno,ub_zero_counter,num_out_pixels))
+                    #print("layer{},total non-zero var:{}".format(layerno,len(m.getVars())-totalZeros))
                     # If not at the last layer
                     if (layerno != numlayer-1):
-                        print("dummy")
-                        # If number of zero neurons is too small, chose ELINA in the next layer
-                        #if( ub_zero_counter < num_out_pixels*0.30):
-                        #    LinearSolver[layerno+1] = False #True# editable
-                        # If next layer is Elina, evaluate bounds to construct new element from linear solver results
-                        #if (LinearSolver[layerno+1]==False and LinearSolver[layerno]==True):
-                        ##if(1):
-                        #    for i in range(num_out_pixels):
-                        #        # minimise for lower bound
-                        #        m.setObjective(y[i],GRB.MINIMIZE)
-                        #        m.optimize()
-                        #        y_lb.append(y[i].x)
-                        #        # maximise for upper bound
-                        #        m.setObjective(y[i],GRB.MAXIMIZE)
-                        #        m.optimize()
-                        #        y_ub.append(y[i].x)
-                        #        #print('Out:layer{},neuron{},lb:{},ub:{}'.format(layerno,i,y_lb[i],y_ub[i]))
-                        #        # Construct Elina Box    
-                        #    #element = updateElina(y_lb,y_ub,man,element,num_out_pixels) 
-                        #    element = toElina(y_lb,y_ub,man,num_out_pixels) 
+                        print("dummy,time:{}".format(time.time()-internalStart))
+                        # If zero neurons are still large and time is pressing, choose Elina to continue`
+                        if( LinearSolver[layerno+1]==True and ub_zero_counter > num_out_pixels*0.45 and (time.time()-internalStart) > 420*(layerno+1/numlayer)*0.3 ):
+                            print("saver triggered")
+                            LinearSolver[layerno+1] = False #True# editable
                     # If at last layer, always constuct Elina Box
                     else:
                         if (LinearSolver[layerno]==True):
@@ -442,15 +426,18 @@ def switch(netname):
         '3_10':[True, True, True],
         '3_20':[True, True, True],#3*true:90 tft:33 ftt:71 ttf:81
         '3_50':[True, True, True],
-        '4_1024':[True, False,True, False],
+        '4_1024':[True, True, False, False],
+        #'4_1024':[True, False,True, False],
         '6_20':[True, True, True, True, True, True],
         '6_50':[True, True, True, True, True, True],
         '6_100':[True, True, True, True, True, True],
         #'6_100':[False,False,False,False,False,False,],
         #'6_200':[False,False,False,False,False,True,],
         '6_200':[True, True, True, True, True, True],
-        '9_100':[True, True, True, True, True, True, True, False, True],
-        '9_200':[True, True, True, True, True, True, True, True,False],#, True],
+        '9_100':[True, True, True, True, True, True, True, True, True],
+        #'9_200':[True, True, True, True, True, True, True, False, True],
+        '9_200':[True, True, True, True, True, True, True, True, True],
+        #'9_200':[True, True, True, True, True, True, True, True,False],#, True],
     }[netname]
 #*******************************************
 
@@ -494,7 +481,7 @@ if __name__ == '__main__':
             print("verified")
         else:
             print("can not be verified")  
-        print("True Label {}".format(x0_low[0]))  
+        #print("True Label {}".format(x0_low[0]))  
     else:
         is_valid = False
         print("image not correctly classified by the network. expected label ",int(x0_low[0]), " classified label: ", label)
@@ -502,7 +489,7 @@ if __name__ == '__main__':
     print("analysis time: ", (end-start), " seconds")
      
     ##*********OUTPUT data**********##
-    #csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
+    csv_address='/home/riai2018/RIAI_pjct/output/log.csv'
     csv_address='log.csv'
     exists = os.path.isfile(csv_address)
     mode = 'a' if (exists) else 'w'
